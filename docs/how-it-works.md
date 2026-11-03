@@ -22,6 +22,7 @@ Block reasons, approval texts and log lines name the group and kind and never th
 | Tool | Required text | Receiving agent |
 | --- | --- | --- |
 | `sessions_send` | `message` | the id in an `agent:<id>:…` `sessionKey`; with no `sessionKey` or `label`, `agentId`. Any other key or a label lookup is unknown |
+| `ask_research` | `question` | unknown: the plugin's config picks the agent |
 | `sessions_spawn` | `task` | `agentId`, or the requester's own agent when it is absent (`tools/subagents/tool-reference.md`, `agentId`) |
 
 The target order follows OpenClaw's own: `sessions_send` uses `agentId` only when neither `sessionKey` nor `label` is given (dist `sessions-spawn-tool`, 2026.10.5), so an `agentId` can't borrow an exemption for a call that goes elsewhere.

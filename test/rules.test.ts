@@ -7,6 +7,11 @@ test('other tools are not agent text, channel posts included', () => {
   assert.equal(outboundText('message', { action: 'send', message: 'hi' }, 'main'), undefined);
 });
 
+test('ask_research hands its question to an unknown agent, and an unreadable question blocks', () => {
+  assert.deepEqual(outboundText('ask_research', { question: 'q' }, 'coder'), { target: undefined, text: 'q' });
+  assert.equal(outboundText('ask_research', {}, 'coder'), null);
+});
+
 test('sessions_send names its target by agentId or by an agent session key, and a label stays unknown', () => {
   assert.deepEqual(outboundText('sessions_send', { agentId: 'helper', message: 'm' }, 'main'), { target: 'helper', text: 'm' });
   assert.deepEqual(outboundText('sessions_send', { sessionKey: ['agent', 'helper', 'main'].join(':'), message: 'm' }, 'main'), {

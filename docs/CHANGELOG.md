@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Checks the `question` of `ask_research` (openclaw-ask-research), with an unknown receiving agent.
 - Ships compiled `dist/` for git installs, which run npm without scripts; `openclaw.runtimeExtensions` points at `./dist/index.js`. CI checks `dist/` matches a fresh build.
 - Renamed from `pii-guard` to `handoff-guard`: plugin id `handoff-guard`, config at `plugins.entries.handoff-guard.config`. Re-enable under the new id.
 - Three groups, `secrets`, `structured-pii` and `contextual-pii`, each with a mode: `block`, `approve`, `warn` or `off`. Defaults: `secrets` and `structured-pii` block, `contextual-pii` warns. No new detector.

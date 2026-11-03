@@ -2,15 +2,17 @@
  * The tool calls that hand text to another agent (OpenClaw 2026.10.5, docs tools/subagents/tool-reference.md and
  * concepts/session-tool.md): `sessions_send` runs another session with `message`, and `sessions_spawn` starts a child
  * run with `task`, a `label`, attachments and an output schema. Channel posts (`message`) reach people, not agents,
- * and are out of scope.
+ * and are out of scope. `ask_research` (splitleafhq/openclaw-ask-research) runs an agent on `question`; that agent comes
+ * from the plugin's config, so the guard treats it as unknown.
  */
-export const AGENT_TEXT_TOOLS = new Set(['sessions_send', 'sessions_spawn']);
+export const AGENT_TEXT_TOOLS = new Set(['ask_research', 'sessions_send', 'sessions_spawn']);
 /**
  * Parameters that pick where or how a call runs rather than carry text for the receiver. Every other string, nested
  * or not, is checked, so a field added by an upgrade is checked until it is listed here. Session keys and git URLs are
  * here because they can hold a room id or an `@host:` form that isn't personal data.
  */
 const SELECTORS = {
+    ask_research: new Set(),
     sessions_send: new Set(['sessionKey', 'label', 'agentId', 'mode', 'watch', 'timeoutSeconds']),
     sessions_spawn: new Set([
         'agentId',
@@ -30,6 +32,7 @@ const SELECTORS = {
         'mimeType',
     ]),
 };
+const REQUIRED_TEXT = { ask_research: 'question', sessions_send: 'message', sessions_spawn: 'task' };
 function isRecord(value) {
     return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -91,13 +94,14 @@ function spawnTarget(params, requester) {
 export function outboundText(toolName, params, requester) {
     const tool = canonicalTool(toolName);
     const skip = SELECTORS[tool];
-    if (!AGENT_TEXT_TOOLS.has(tool) || !skip) {
+    const requiredField = REQUIRED_TEXT[tool];
+    if (!AGENT_TEXT_TOOLS.has(tool) || !skip || !requiredField) {
         return undefined;
     }
     if (!isRecord(params)) {
         return null;
     }
-    const required = tool === 'sessions_send' ? params.message : params.task;
+    const required = params[requiredField];
     if (typeof required !== 'string') {
         return null;
     }
@@ -111,6 +115,9 @@ export function outboundText(toolName, params, requester) {
     }
     const strings = [];
     collect(params, skip, strings);
+    if (tool === 'ask_research') {
+        return { target: undefined, text: strings.join('\n') };
+    }
     const target = tool === 'sessions_send' ? sendTarget(params) : spawnTarget(params, requester);
     return { target, text: strings.join('\n') };
 }

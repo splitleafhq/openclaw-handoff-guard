@@ -2,9 +2,10 @@
  * The tool calls that hand text to another agent (OpenClaw 2026.10.5, docs tools/subagents/tool-reference.md and
  * concepts/session-tool.md): `sessions_send` runs another session with `message`, and `sessions_spawn` starts a child
  * run with `task`, a `label`, attachments and an output schema. Channel posts (`message`) reach people, not agents,
- * and are out of scope.
+ * and are out of scope. `ask_research` (splitleafhq/openclaw-ask-research) runs an agent on `question`; that agent comes
+ * from the plugin's config, so the guard treats it as unknown.
  */
-export const AGENT_TEXT_TOOLS: ReadonlySet<string> = new Set(['sessions_send', 'sessions_spawn']);
+export const AGENT_TEXT_TOOLS: ReadonlySet<string> = new Set(['ask_research', 'sessions_send', 'sessions_spawn']);
 
 /**
  * Parameters that pick where or how a call runs rather than carry text for the receiver. Every other string, nested
@@ -12,6 +13,7 @@ export const AGENT_TEXT_TOOLS: ReadonlySet<string> = new Set(['sessions_send', '
  * here because they can hold a room id or an `@host:` form that isn't personal data.
  */
 const SELECTORS: Record<string, ReadonlySet<string>> = {
+  ask_research: new Set(),
   sessions_send: new Set(['sessionKey', 'label', 'agentId', 'mode', 'watch', 'timeoutSeconds']),
   sessions_spawn: new Set([
     'agentId',
@@ -31,6 +33,8 @@ const SELECTORS: Record<string, ReadonlySet<string>> = {
     'mimeType',
   ]),
 };
+
+const REQUIRED_TEXT: Record<string, string> = { ask_research: 'question', sessions_send: 'message', sessions_spawn: 'task' };
 
 export interface OutboundText {
   /** The receiving agent's id, or undefined when the call names it in a way the guard can't map. */
@@ -104,13 +108,14 @@ function spawnTarget(params: Record<string, unknown>, requester: string | undefi
 export function outboundText(toolName: string, params: unknown, requester: string | undefined): OutboundText | null | undefined {
   const tool = canonicalTool(toolName);
   const skip = SELECTORS[tool];
-  if (!AGENT_TEXT_TOOLS.has(tool) || !skip) {
+  const requiredField = REQUIRED_TEXT[tool];
+  if (!AGENT_TEXT_TOOLS.has(tool) || !skip || !requiredField) {
     return undefined;
   }
   if (!isRecord(params)) {
     return null;
   }
-  const required = tool === 'sessions_send' ? params.message : params.task;
+  const required = params[requiredField];
   if (typeof required !== 'string') {
     return null;
   }
@@ -124,6 +129,9 @@ export function outboundText(toolName: string, params: unknown, requester: strin
   }
   const strings: string[] = [];
   collect(params, skip, strings);
+  if (tool === 'ask_research') {
+    return { target: undefined, text: strings.join('\n') };
+  }
   const target = tool === 'sessions_send' ? sendTarget(params) : spawnTarget(params, requester);
   return { target, text: strings.join('\n') };
 }

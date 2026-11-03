@@ -112,7 +112,7 @@ npm run build
 
 Commit `dist/` with any change to `src/`; CI fails when it doesn't match a fresh build.
 
-Run `lefthook install` once per clone with [lefthook](https://lefthook.dev) installed. The pre-push hook then runs the same checks as CI, and a failed check stops the push.
+Run `git config core.hooksPath .githooks` once per clone. The pre-push hook then runs `scripts/check`, the same checks as CI, and a failed check stops the push.
 
 Run the checks in a separate clone from the one you've installed with `--link`, or reinstall with `--omit=dev` afterwards.
 

@@ -49,7 +49,7 @@ Kinds are listed below. Every text field of the call is checked: the message or 
 From a release tag:
 
 ```sh
-openclaw plugins install git:github.com/seriouslysean/openclaw-handoff-guard@<tag> --force --accept-capabilities
+openclaw plugins install git:github.com/splitleafhq/openclaw-handoff-guard@<tag> --force --accept-capabilities
 openclaw plugins enable handoff-guard
 openclaw plugins inspect handoff-guard --runtime --json
 ```

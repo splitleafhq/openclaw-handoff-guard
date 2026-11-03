@@ -94,13 +94,14 @@ function spawnTarget(params, requester) {
 export function outboundText(toolName, params, requester) {
     const tool = canonicalTool(toolName);
     const skip = SELECTORS[tool];
-    if (!AGENT_TEXT_TOOLS.has(tool) || !skip) {
+    const requiredField = REQUIRED_TEXT[tool];
+    if (!AGENT_TEXT_TOOLS.has(tool) || !skip || !requiredField) {
         return undefined;
     }
     if (!isRecord(params)) {
         return null;
     }
-    const required = params[REQUIRED_TEXT[tool]];
+    const required = params[requiredField];
     if (typeof required !== 'string') {
         return null;
     }

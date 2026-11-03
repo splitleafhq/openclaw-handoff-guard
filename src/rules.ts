@@ -108,13 +108,14 @@ function spawnTarget(params: Record<string, unknown>, requester: string | undefi
 export function outboundText(toolName: string, params: unknown, requester: string | undefined): OutboundText | null | undefined {
   const tool = canonicalTool(toolName);
   const skip = SELECTORS[tool];
-  if (!AGENT_TEXT_TOOLS.has(tool) || !skip) {
+  const requiredField = REQUIRED_TEXT[tool];
+  if (!AGENT_TEXT_TOOLS.has(tool) || !skip || !requiredField) {
     return undefined;
   }
   if (!isRecord(params)) {
     return null;
   }
-  const required = params[REQUIRED_TEXT[tool]];
+  const required = params[requiredField];
   if (typeof required !== 'string') {
     return null;
   }

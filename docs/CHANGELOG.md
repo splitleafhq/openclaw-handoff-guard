@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.2
 
 - Checks the `question` of `ask_research` (openclaw-ask-research), with an unknown receiving agent.
 - Ships compiled `dist/` for git installs, which run npm without scripts; `openclaw.runtimeExtensions` points at `./dist/index.js`. CI checks `dist/` matches a fresh build.

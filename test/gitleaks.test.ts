@@ -149,18 +149,15 @@ test('the pinned config extends the defaults and disables generic-api-key', asyn
   assert.match(GITLEAKS_VERSION, /^\d+\.\d+\.\d+$/);
 });
 
-// Runs only against a real binary: GITLEAKS_BIN, or gitleaks on PATH at the pinned version.
-function realBinary(): string | undefined {
-  const candidate = process.env.GITLEAKS_BIN ?? 'gitleaks';
-  const probe = spawnSync(candidate, ['version'], { encoding: 'utf8' });
-  return probe.status === 0 && probe.stdout.trim() === GITLEAKS_VERSION ? candidate : undefined;
-}
-const real = realBinary();
+// Runs against the real binary: GITLEAKS_BIN, or gitleaks on PATH. CI installs the pinned version.
+const real = process.env.GITLEAKS_BIN ?? 'gitleaks';
 
-test('real gitleaks: finds a provider token, passes plain and generic text, ignores an inline allow', { skip: !real }, async () => {
+test('real gitleaks: finds a provider token, passes plain and generic text, ignores an inline allow', async () => {
+  const probe = spawnSync(real, ['version'], { encoding: 'utf8' });
+  assert.equal(probe.stdout?.trim(), GITLEAKS_VERSION, `needs gitleaks ${GITLEAKS_VERSION} on PATH or in GITLEAKS_BIN`);
   const awsKey = ['AKIA', 'IOSFODNN7', 'ABCDEFG'].join('');
-  assert.equal(await runGitleaks(real ?? '', `key ${awsKey}`), true);
-  assert.equal(await runGitleaks(real ?? '', `key ${awsKey} # gitleaks:allow`), true);
-  assert.equal(await runGitleaks(real ?? '', 'papers on sparse attention, Cadderly 2026'), false);
-  assert.equal(await runGitleaks(real ?? '', 'api_key = "a8f3k2j5h6g7d9s0a1q2w3e4r5t6y7u8"'), false);
+  assert.equal(await runGitleaks(real, `key ${awsKey}`), true);
+  assert.equal(await runGitleaks(real, `key ${awsKey} # gitleaks:allow`), true);
+  assert.equal(await runGitleaks(real, 'papers on sparse attention, Cadderly 2026'), false);
+  assert.equal(await runGitleaks(real, 'api_key = "a8f3k2j5h6g7d9s0a1q2w3e4r5t6y7u8"'), false);
 });

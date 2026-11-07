@@ -33,7 +33,7 @@
   },
   "devDependencies": {
     "@types/node": "24.19.2",
-    "openclaw": "2026.10.5",
+    "openclaw": "2026.11.1",
     "oxlint": "1.88.0",
     "typescript": "7.0.2"
   },

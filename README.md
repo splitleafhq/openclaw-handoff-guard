@@ -16,12 +16,12 @@ An agent that can't reach the web can still ask one that can: the text it sends 
 
 | Mode | What happens to a call whose text matches |
 | --- | --- |
-| `block` | Refused before execution, with a reason naming the group and kind. |
+| `block` | Refused before execution, with a reason naming the group and kind. One line goes to `api.logger.warn`: the group, the kind and the receiving agent, never the value. |
 | `approve` | Held for the owner through OpenClaw's plugin approvals: allow once or deny, never allow always. A timeout denies. |
 | `warn` | Goes ahead; the group and kind are logged through `api.logger.warn`, never the value. |
 | `off` | The group is not run. |
 
-A detector that fails follows its group's mode. Text the plugin can't read always blocks.
+A detector that fails follows its group's mode. Text the plugin can't read always blocks. When the parameter that must carry the text is missing (`message`, `task` or `question`), the reason names it, so the agent can send the call again with the text in the right place.
 
 The block reason the agent sees (the host's wrapper line is illustrative until it is checked on a live gateway, see [docs/verification.md](docs/verification.md)):
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- A block for a missing text parameter names it (`message`, `task` or `question`) instead of saying only that the text could not be read.
+- Every block writes one line through `api.logger.warn`: the group, kind and receiving agent, or the tool and the missing parameter. Never the matched value.
+
 ## 0.1.2
 
 - Checks the `question` of `ask_research` (openclaw-ask-research), with an unknown receiving agent.

@@ -2,7 +2,7 @@ import { strict as assert } from 'node:assert';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 import { DEFAULT_KINDS, GROUPS, findPersonalData, resetEngine } from '../src/detect.ts';
-import { type HookApi, MODES, PLUGIN_ID, UNREADABLE_REASON, decide, register, resolveConfig } from '../src/guard.ts';
+import { type HookApi, MODES, PLUGIN_ID, UNREADABLE_REASON, decide, missingFieldReason, register, resolveConfig } from '../src/guard.ts';
 
 const email = { toolName: 'sessions_send', params: { agentId: 'helper', message: 'mail someone@example.org' } };
 
@@ -203,14 +203,34 @@ test('unreadable parameters block whatever the modes and overrides are', async (
     groups: { secrets: { mode: 'off' }, 'structured-pii': { mode: 'off' }, 'contextual-pii': { mode: 'off' } },
     allowTargets: ['main'],
   });
-  assert.deepEqual(await decide({ toolName: 'sessions_send', params: {} }, main, off), { block: true, blockReason: UNREADABLE_REASON });
+  assert.deepEqual(await decide({ toolName: 'sessions_send', params: 'text' }, main, off), { block: true, blockReason: UNREADABLE_REASON });
+  assert.deepEqual(await decide({ toolName: 'sessions_send', params: {} }, main, off), {
+    block: true,
+    blockReason: missingFieldReason('sessions_send', 'message'),
+  });
+});
+
+test('a call with its text under another name is blocked with the field it needs, and logged without the text', async () => {
+  const lines: string[] = [];
+  const spawn = { toolName: 'sessions_spawn', params: { agentId: 'helper', message: 'papers on sparse attention' } };
+  const result = await decide(spawn, main, resolveConfig({}), (line) => lines.push(line));
+  assert.ok(result && 'block' in result);
+  assert.match(result.blockReason, /sessions_spawn/);
+  assert.match(result.blockReason, /`task`/);
+  assert.deepEqual(lines, [`${PLUGIN_ID}: block: sessions_spawn: no text in task`]);
+});
+
+test('a blocked finding logs the group, kind and receiving agent, never the value', async () => {
+  const lines: string[] = [];
+  assert.ok(blocks(await decide(email, main, resolveConfig({}), (line) => lines.push(line))));
+  assert.deepEqual(lines, [`${PLUGIN_ID}: block: structured-pii email in text for helper`]);
 });
 
 test('clean text and other tools pass; unreadable agent text is blocked', async () => {
   const config = resolveConfig({});
   assert.equal(await decide(clean, { agentId: 'main' }, config), undefined);
   assert.equal(await decide({ toolName: 'read', params: { path: 'someone@example.org' } }, {}, config), undefined);
-  assert.deepEqual(await decide({ toolName: 'sessions_send', params: {} }, {}, config), {
+  assert.deepEqual(await decide({ toolName: 'sessions_send', params: undefined }, {}, config), {
     block: true,
     blockReason: UNREADABLE_REASON,
   });
@@ -234,8 +254,10 @@ test('register adds one before_tool_call handler that uses the plugin config and
   assert.ok(blocks(await call?.handler(other, main)));
   assert.equal(await call?.handler(credential, main), undefined);
   const logged = warnings.filter((line) => !line.includes('gitleaks skipped'));
-  assert.equal(logged.length, 1);
-  assert.doesNotMatch(logged[0] ?? '', new RegExp(credentialText));
+  assert.equal(logged.length, 2);
+  assert.match(logged[0] ?? '', /block: structured-pii/);
+  assert.match(logged[1] ?? '', /warn: secrets/);
+  assert.doesNotMatch(logged.join('\n'), new RegExp(`${credentialText}|example\\.org`));
 });
 
 test('register works without a logger', async () => {

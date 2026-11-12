@@ -88,8 +88,8 @@ function spawnTarget(params, requester) {
     return params.agentId == null ? requester : nonEmpty(params.agentId);
 }
 /**
- * The text a call hands to another agent and who receives it: undefined for any other tool, and null for an agent
- * text call whose text can't be read, which the guard blocks.
+ * The text a call hands to another agent and who receives it: undefined for any other tool, and `Unreadable` for an
+ * agent text call whose text can't be read, which the guard blocks.
  */
 export function outboundText(toolName, params, requester) {
     const tool = canonicalTool(toolName);
@@ -99,18 +99,18 @@ export function outboundText(toolName, params, requester) {
         return undefined;
     }
     if (!isRecord(params)) {
-        return null;
+        return { unreadable: true, tool };
     }
     const required = params[requiredField];
     if (typeof required !== 'string') {
-        return null;
+        return { unreadable: true, tool, field: requiredField };
     }
     if (tool === 'sessions_spawn') {
         if (params.label != null && typeof params.label !== 'string') {
-            return null;
+            return { unreadable: true, tool };
         }
         if (params.attachments != null && (!Array.isArray(params.attachments) || !params.attachments.every(isRecord))) {
-            return null;
+            return { unreadable: true, tool };
         }
     }
     const strings = [];

@@ -16,5 +16,5 @@ Rules for working in this repo.
 12. Prefer a maintained detector package to a hand-written pattern. Runtime dependencies are the detectors in `package.json` and one pinned detector binary run as a separate process: gitleaks, a release artifact pinned by version and SHA-256. A new one needs its maintenance and licence in the pull request.
 13. A comment states a constraint the code can't show, never what the next line does.
 14. Write terse, factual prose.
-15. Commit and open pull requests on the user's behalf; pushing, merging, tagging and releasing each need their own approval.
+15. Commit, push and open pull requests on the user's behalf; merging, tagging and releasing each need their own approval.
 16. Keep agent-session links and session trailers out of commit messages, issues and pull request bodies.

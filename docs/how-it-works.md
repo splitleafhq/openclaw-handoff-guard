@@ -8,12 +8,12 @@ The plugin registers one asynchronous `before_tool_call` handler at priority 90 
 
 | Mode | Hook result |
 | --- | --- |
-| `block` | `{ block: true, blockReason }`, which is terminal |
+| `block` | `{ block: true, blockReason }`, which is terminal; the group, kind and receiving agent go to `api.logger.warn` |
 | `approve` | `requireApproval` with `allowedDecisions: ["allow-once", "deny"]` and a 120 s timeout; the run pauses, and a timeout, a cancellation or no approval route blocks the call (`plugins/plugin-permission-requests.md`, "Decision behavior") |
 | `warn` | no result; the group and kind go to `api.logger.warn` (`plugins/sdk-runtime.md`) |
 | `off` | the group is not run |
 
-The groups run in the order `secrets`, `structured-pii`, `contextual-pii`, and the strictest result wins: block, then approve. Unreadable parameters block before any group runs, whatever the modes are. A detector that throws is a finding in its group's mode: `block` blocks, `approve` asks, `warn` logs, `off` never ran it. OpenClaw blocks the call when the handler itself throws or exceeds its timeout, 15 seconds by default (`plugins/hooks/reference.md`, "On thrown error or timeout"). A check takes milliseconds.
+The groups run in the order `secrets`, `structured-pii`, `contextual-pii`, and the strictest result wins: block, then approve. Unreadable parameters block before any group runs, whatever the modes are, and the block is logged with the tool name. When the tool's text parameter is missing or not a string (`message` for `sessions_send`, `task` for `sessions_spawn`, `question` for `ask_research`), the reason names that parameter: the hook answers before the host reports the missing property (seen on OpenClaw 2026.11.3; the docs don't state the order), so the reason carries what the host's answer would have. A detector that throws is a finding in its group's mode: `block` blocks, `approve` asks, `warn` logs, `off` never ran it. OpenClaw blocks the call when the handler itself throws or exceeds its timeout, 15 seconds by default (`plugins/hooks/reference.md`, "On thrown error or timeout"). A check takes milliseconds.
 
 Block reasons, approval texts and log lines name the group and kind and never the matched value.
 

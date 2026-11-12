@@ -13,7 +13,8 @@
   - the deprecated `allowTargets` and top-level `kinds`;
   - every text field checked, attachments raw and base64-decoded, selectors skipped, and tool names compared without namespace or case;
   - a detector engine that fails to start is retried, not cached;
-  - unreadable agent text, blocked;
+  - unreadable agent text, blocked, with the missing text parameter named in the reason;
+  - one log line per block, with the group, kind and receiving agent (or the tool and the missing parameter) and never the value;
   - a block reason that never echoes the value;
   - gitleaks through a fake executable (finding, no finding, exit 1, unreadable report, timeout, stdin-only text, the flags and the pinned config), its failure following each group mode, and the skipped-with-one-warning startup;
   - `us-street` and `date-of-birth` found, warning by default and blocking when the group is set to `block`, and passing on prose numbers, suffix-less addresses, dates with no birth keyword and a year alone after `born`;
@@ -27,6 +28,8 @@
 - **Runtime dependencies alone** (`npm ci --omit=dev`): a check runs in about 10 ms on the first call and about 2 ms on 1,750 characters after that, on Apple silicon.
 
 ## Not yet checked on a live gateway
+
+- The missing-parameter reason and the block log lines. The earlier reason was seen as the tool result on OpenClaw 2026.11.3, and this plugin's `api.logger.warn` lines were seen in the gateway log there.
 
 - gitleaks inside a running gateway: the binary's path being executable by the gateway user, and the spawn working under the gateway's sandbox, if any.
 - gitleaks versions other than 8.30.1.

@@ -42,6 +42,13 @@ export interface OutboundText {
   text: string;
 }
 
+/** An agent text call whose text can't be read. `field` is set when the parameter that must carry the text is missing. */
+export interface Unreadable {
+  unreadable: true;
+  tool: string;
+  field?: string;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
@@ -102,10 +109,10 @@ function spawnTarget(params: Record<string, unknown>, requester: string | undefi
 }
 
 /**
- * The text a call hands to another agent and who receives it: undefined for any other tool, and null for an agent
- * text call whose text can't be read, which the guard blocks.
+ * The text a call hands to another agent and who receives it: undefined for any other tool, and `Unreadable` for an
+ * agent text call whose text can't be read, which the guard blocks.
  */
-export function outboundText(toolName: string, params: unknown, requester: string | undefined): OutboundText | null | undefined {
+export function outboundText(toolName: string, params: unknown, requester: string | undefined): OutboundText | Unreadable | undefined {
   const tool = canonicalTool(toolName);
   const skip = SELECTORS[tool];
   const requiredField = REQUIRED_TEXT[tool];
@@ -113,18 +120,18 @@ export function outboundText(toolName: string, params: unknown, requester: strin
     return undefined;
   }
   if (!isRecord(params)) {
-    return null;
+    return { unreadable: true, tool };
   }
   const required = params[requiredField];
   if (typeof required !== 'string') {
-    return null;
+    return { unreadable: true, tool, field: requiredField };
   }
   if (tool === 'sessions_spawn') {
     if (params.label != null && typeof params.label !== 'string') {
-      return null;
+      return { unreadable: true, tool };
     }
     if (params.attachments != null && (!Array.isArray(params.attachments) || !params.attachments.every(isRecord))) {
-      return null;
+      return { unreadable: true, tool };
     }
   }
   const strings: string[] = [];

@@ -51,6 +51,15 @@ export type Decision = BlockResult | ApprovalResult | undefined;
 
 export const UNREADABLE_REASON = 'Blocked: the text for another agent could not be read, so it could not be checked.';
 
+/**
+ * A call that lacks its required text field still reaches this hook: seen on a live gateway (OpenClaw 2026.11.3), where
+ * the block replaced the host's own "must have required property" answer. The docs don't state that order. The reason
+ * names the field, so the agent learns what the host would have told it.
+ */
+export function missingFieldReason(tool: string, field: string): string {
+  return `Blocked: ${tool} carries its text for the other agent in \`${field}\`, and this call has none. Send it again with the text in \`${field}\`.`;
+}
+
 /** 2 minutes, the host's default. A timeout blocks the call (plugins/plugin-permission-requests.md, 2026.10.5). */
 const APPROVAL_TIMEOUT_MS = 120_000;
 
@@ -152,7 +161,7 @@ function describe(finding: Finding, target: string): string {
  * checked with the group's own mode: OpenClaw documents missing context as unproven, not as "some other agent"
  * (plugins/hooks/tool-policy.md, 2026.10.5). A detector that throws is a finding in its group's mode; text that can't
  * be read is blocked whatever the modes are, since no group can check it. The strictest finding decides: block, then
- * approve; a warn only logs, and the log never holds the matched value.
+ * approve. A warn and a block each log one line, and the log never holds the matched value.
  */
 export async function decide(
   event: ToolCallEvent,
@@ -164,8 +173,9 @@ export async function decide(
   if (outbound === undefined) {
     return undefined;
   }
-  if (outbound === null) {
-    return { block: true, blockReason: UNREADABLE_REASON };
+  if ('unreadable' in outbound) {
+    log(`${PLUGIN_ID}: block: ${outbound.tool}: ${outbound.field ? `no text in ${outbound.field}` : 'unreadable parameters'}`);
+    return { block: true, blockReason: outbound.field ? missingFieldReason(outbound.tool, outbound.field) : UNREADABLE_REASON };
   }
   const target = outbound.target ?? 'another agent';
   const overrides = outbound.target ? config.targets[outbound.target] : undefined;
@@ -190,6 +200,7 @@ export async function decide(
   }
   const blocking = findings.find((item) => item.mode === 'block');
   if (blocking) {
+    log(`${PLUGIN_ID}: block: ${blocking.kind ? `${blocking.group} ${blocking.kind}` : `${blocking.group} check failed`} in text for ${target}`);
     // The matched value is never echoed: the reason reaches the transcript and the logs.
     const reason = blocking.kind ? 'Rephrase without it, or ask the owner.' : 'Try again, or ask the owner.';
     return { block: true, blockReason: `Blocked: ${describe(blocking, target)}. ${reason}` };

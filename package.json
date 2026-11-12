@@ -23,9 +23,9 @@
     "test": "node --test --experimental-test-coverage --test-coverage-include='src/**' --test-coverage-lines=90 --test-coverage-branches=90 --test-coverage-functions=90 'test/*.test.ts'"
   },
   "dependencies": {
-    "@arcjet/redact": "1.14.1",
-    "@secretlint/node": "13.0.7",
-    "@secretlint/secretlint-rule-preset-recommend": "13.0.7",
+    "@arcjet/redact": "1.15.0",
+    "@secretlint/node": "13.1.0",
+    "@secretlint/secretlint-rule-preset-recommend": "13.1.0",
     "ibantools": "4.5.4"
   },
   "peerDependencies": {
@@ -34,7 +34,7 @@
   "devDependencies": {
     "@types/node": "24.19.2",
     "openclaw": "2026.11.2",
-    "oxlint": "1.88.0",
+    "oxlint": "1.93.0",
     "typescript": "7.0.2"
   },
   "openclaw": {

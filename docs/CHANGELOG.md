@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.1.3
 
 - A block for a missing text parameter names it (`message`, `task` or `question`) instead of saying only that the text could not be read.
 - Every block writes one line through `api.logger.warn`: the group, kind and receiving agent, or the tool and the missing parameter. Never the matched value.

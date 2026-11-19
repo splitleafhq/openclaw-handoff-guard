@@ -277,9 +277,14 @@ test('the manifest id, groups, modes and kinds match the code', async () => {
     const properties = [...schema, 'groups', 'properties', group, 'properties'];
     assert.deepEqual(sorted(at(manifest, ...properties, 'mode', 'enum')), MODES.toSorted(), `${group} modes`);
     assert.deepEqual(sorted(at(manifest, ...properties, 'kinds', 'items', 'enum')), KINDS.toSorted(), `${group} kinds`);
+    // A kinds list is an array of strings: with another type the host would refuse a valid config.
+    assert.equal(at(manifest, ...properties, 'kinds', 'type'), 'array', `${group} kinds type`);
+    assert.equal(at(manifest, ...properties, 'kinds', 'items', 'type'), 'string', `${group} kinds item type`);
     assert.deepEqual(sorted(at(manifest, ...schema, 'targets', 'additionalProperties', 'properties', group, 'enum')), MODES.toSorted(), `${group} target modes`);
   }
   assert.deepEqual(sorted(at(manifest, ...schema, 'kinds', 'items', 'enum')), KINDS.toSorted(), 'top-level kinds');
+  assert.equal(at(manifest, ...schema, 'kinds', 'type'), 'array', 'top-level kinds type');
+  assert.equal(at(manifest, ...schema, 'kinds', 'items', 'type'), 'string', 'top-level kinds item type');
 });
 
 test('an engine that failed to start is not cached, so one failure does not block every later call', async () => {

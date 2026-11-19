@@ -97,3 +97,14 @@ jobs:
       - run: npm run build
       # OpenClaw installs run npm with --ignore-scripts, so the committed dist/ is what runs.
       - run: git diff --exit-code -- dist && test -z "$(git ls-files --others --exclude-standard -- dist)"
+
+  # Squash-merges a Dependabot PR once the jobs above pass, if the update is a
+  # patch or minor; the steps live in splitleafhq/.github. A new PR job goes in
+  # needs: too, or this merges before it finishes.
+  automerge:
+    needs: [lint, typecheck, test, build]
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    permissions:
+      contents: write
+      pull-requests: write
+    uses: splitleafhq/.github/.github/workflows/dependabot-auto-merge.yml@2ff5d9c790d0f53d8501f3cceb1ad20de5261565 # main at #22

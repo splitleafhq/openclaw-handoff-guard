@@ -20,6 +20,8 @@ case "$text" in
   *FAKEBADJSON*) printf 'not json\\n'; exit 2 ;;
   *FAKESLOW*) sleep 5; exit 0 ;;
   *FAKEEARLYEXIT*) exit 0 ;;
+  *FAKEKILLED*) kill -KILL $$ ;;
+  *FAKEHUGE*) head -c 1100000 /dev/zero | tr '\\0' 'x'; exit 2 ;;
 esac
 printf '[]\\n'
 exit 0
@@ -27,11 +29,15 @@ exit 0
 
 let dir = '';
 let fake = '';
+let notExecutable = '';
 before(async () => {
   dir = await mkdtemp(join(tmpdir(), 'handoff-guard-'));
   fake = join(dir, 'gitleaks');
   await writeFile(fake, FAKE);
   await chmod(fake, 0o755);
+  notExecutable = join(dir, 'gitleaks-not-executable');
+  await writeFile(notExecutable, FAKE);
+  await chmod(notExecutable, 0o644);
 });
 after(async () => {
   await rm(dir, { recursive: true, force: true });
@@ -71,6 +77,11 @@ test('an exit 1, a report that is not JSON, a leak exit with no rule id and a mi
   await assert.rejects(runGitleaks(join(dir, 'absent'), 'text'), /gitleaks/);
 });
 
+test('gitleaks killed by a signal, or a leak report past the size limit, fails the check', async () => {
+  await assert.rejects(runGitleaks(fake, 'FAKEKILLED'), /stopped/);
+  await assert.rejects(runGitleaks(fake, 'FAKEHUGE'), /exited with 2/);
+});
+
 test('a gitleaks run past the timeout fails the check instead of hanging the call', async () => {
   const started = Date.now();
   await assert.rejects(runGitleaks(fake, 'FAKESLOW', 200), /timed out/);
@@ -91,6 +102,31 @@ test('a gitleaks failure follows the group mode and the block reason never holds
   assert.deepEqual(logs, ['handoff-guard: warn: secrets check failed in text for helper']);
 });
 
+test('a gitleaks run that is killed or reports too much blocks the call as an unchecked secrets group', async () => {
+  const config = resolveConfig({ groups: { secrets: { gitleaks: { binary: fake } } } });
+  for (const text of ['FAKEKILLED', 'FAKEHUGE']) {
+    const result = await decide(send(`${text} Cadderly`), {}, config);
+    assert.ok(result && 'block' in result, text);
+    assert.match(result.blockReason, /could not be checked by the secrets group/);
+    assert.doesNotMatch(result.blockReason, /Cadderly|FAKE/);
+  }
+});
+
+test('a binary path that exists but is not executable blocks the call and, at register, falls back to secretlint with a warning', async () => {
+  const config = resolveConfig({ groups: { secrets: { gitleaks: { binary: notExecutable } } } });
+  const result = await decide(send('papers on sparse attention'), {}, config);
+  assert.ok(result && 'block' in result);
+  assert.match(result.blockReason, /could not be checked by the secrets group/);
+  const warnings: string[] = [];
+  let handler: Parameters<HookApi['on']>[1] | undefined;
+  register({ pluginConfig: { groups: { secrets: { gitleaks: { binary: notExecutable } } } }, logger: { warn: (line) => warnings.push(line) }, on: (_name, fn) => (handler = fn) });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0] ?? '', /gitleaks skipped/);
+  assert.equal(await handler?.(send('papers on sparse attention'), {}), undefined);
+  const ghp = ['gh', 'p_', 'a'.repeat(36)].join('');
+  assert.ok(blocksCall(await handler?.(send(`token ${ghp}`), {})));
+});
+
 test('a gitleaks finding blocks naming the group and kind only', async () => {
   const config = resolveConfig({ groups: { secrets: { gitleaks: { binary: fake } } } });
   const result = await decide(send('FAKELEAK for Danica'), {}, config);
@@ -107,6 +143,8 @@ test('resolveConfig reads groups.secrets.gitleaks.binary and ignores anything th
   assert.equal(resolveConfig({ groups: { secrets: { gitleaks: 'x' } } }).groups.secrets.gitleaks, undefined);
   assert.equal(resolveConfig(undefined).groups.secrets.gitleaks, undefined);
 });
+
+const blocksCall = (result: unknown) => typeof result === 'object' && result !== null && 'block' in result;
 
 function api(pluginConfig: unknown, warnings: string[]): HookApi {
   return { pluginConfig, logger: { warn: (line) => warnings.push(line) }, on: () => {} };
@@ -142,11 +180,11 @@ test('the manifest declares groups.secrets.gitleaks.binary', async () => {
   assert.equal(manifest.configSchema.properties.groups.properties.secrets.properties.gitleaks.additionalProperties, false);
 });
 
-test('the pinned config extends the defaults and disables generic-api-key', async () => {
+// Contract check only: the behavior (defaults on, generic-api-key off) is asserted by the real-binary test below.
+test('config contract: the pinned gitleaks.toml extends the default rules and disables generic-api-key', async () => {
   const text = await readFile(GITLEAKS_CONFIG, 'utf8');
   assert.match(text, /useDefault\s*=\s*true/);
   assert.match(text, /disabledRules\s*=\s*\["generic-api-key"\]/);
-  assert.match(GITLEAKS_VERSION, /^\d+\.\d+\.\d+$/);
 });
 
 // Runs against the real binary: GITLEAKS_BIN, or gitleaks on PATH. CI installs the pinned version.

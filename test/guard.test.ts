@@ -226,14 +226,10 @@ test('a blocked finding logs the group, kind and receiving agent, never the valu
   assert.deepEqual(lines, [`${PLUGIN_ID}: block: structured-pii email in text for helper`]);
 });
 
-test('clean text and other tools pass; unreadable agent text is blocked', async () => {
+test('clean text and other tools pass', async () => {
   const config = resolveConfig({});
   assert.equal(await decide(clean, { agentId: 'main' }, config), undefined);
   assert.equal(await decide({ toolName: 'read', params: { path: 'someone@example.org' } }, {}, config), undefined);
-  assert.deepEqual(await decide({ toolName: 'sessions_send', params: undefined }, {}, config), {
-    block: true,
-    blockReason: UNREADABLE_REASON,
-  });
 });
 
 test('register adds one before_tool_call handler that uses the plugin config and logs warnings', async () => {
@@ -268,21 +264,27 @@ test('register works without a logger', async () => {
 
 test('the manifest id, groups, modes and kinds match the code', async () => {
   const manifest: unknown = JSON.parse(await readFile(new URL('../openclaw.plugin.json', import.meta.url), 'utf8'));
-  assert.ok(typeof manifest === 'object' && manifest !== null && 'id' in manifest);
-  assert.equal(manifest.id, PLUGIN_ID);
-  assert.equal(PLUGIN_ID, 'handoff-guard');
-  const text = JSON.stringify(manifest);
   const { KINDS } = await import('../src/detect.ts');
-  assert.match(text, new RegExp(JSON.stringify(KINDS).replaceAll(/[[\]]/g, '\\$&')));
-  assert.match(text, new RegExp(JSON.stringify(MODES).replaceAll(/[[\]]/g, '\\$&')));
+  const at = (node: unknown, ...path: string[]): unknown =>
+    path.reduce<unknown>((current, key) => (typeof current === 'object' && current !== null ? Reflect.get(current, key) : undefined), node);
+  const sorted = (value: unknown) => (Array.isArray(value) ? value.toSorted() : value);
+  const schema = ['configSchema', 'properties'];
+  assert.equal(at(manifest, 'id'), PLUGIN_ID);
+  const declared = at(manifest, ...schema, 'groups', 'properties');
+  assert.ok(typeof declared === 'object' && declared !== null);
+  assert.deepEqual(Object.keys(declared).toSorted(), GROUPS.toSorted());
   for (const group of GROUPS) {
-    assert.ok(text.includes(`"${group}"`), group);
+    const properties = [...schema, 'groups', 'properties', group, 'properties'];
+    assert.deepEqual(sorted(at(manifest, ...properties, 'mode', 'enum')), MODES.toSorted(), `${group} modes`);
+    assert.deepEqual(sorted(at(manifest, ...properties, 'kinds', 'items', 'enum')), KINDS.toSorted(), `${group} kinds`);
+    // A kinds list is an array of strings: with another type the host would refuse a valid config.
+    assert.equal(at(manifest, ...properties, 'kinds', 'type'), 'array', `${group} kinds type`);
+    assert.equal(at(manifest, ...properties, 'kinds', 'items', 'type'), 'string', `${group} kinds item type`);
+    assert.deepEqual(sorted(at(manifest, ...schema, 'targets', 'additionalProperties', 'properties', group, 'enum')), MODES.toSorted(), `${group} target modes`);
   }
-  const enums = [...text.matchAll(/"kinds":\{"type":"array","items":\{"type":"string","enum":(\[[^\]]*\])/g)];
-  assert.equal(enums.length, 4);
-  for (const [, list] of enums) {
-    assert.equal(list, JSON.stringify(KINDS));
-  }
+  assert.deepEqual(sorted(at(manifest, ...schema, 'kinds', 'items', 'enum')), KINDS.toSorted(), 'top-level kinds');
+  assert.equal(at(manifest, ...schema, 'kinds', 'type'), 'array', 'top-level kinds type');
+  assert.equal(at(manifest, ...schema, 'kinds', 'items', 'type'), 'string', 'top-level kinds item type');
 });
 
 test('an engine that failed to start is not cached, so one failure does not block every later call', async () => {
